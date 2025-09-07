@@ -1,0 +1,58 @@
+/* styles.css - mobile-first Tinder-like theme */
+:root{
+  --bg1:#ff6b6b;
+  --bg2:#ff8e53;
+  --card:#ffffff;
+  --muted:#6b7280;
+  --maxw:420px;
+  --radius:14px;
+  --shadow: 0 8px 20px rgba(0,0,0,0.12);
+  --accent:#ff6b6b;
+  --success:#22c55e;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,"Helvetica Neue",Arial;}
+body{background:linear-gradient(180deg,var(--bg1),var(--bg2));display:flex;align-items:center;justify-content:center;padding:24px;color:#111}
+
+.app-shell{width:100%;max-width:var(--maxw);background:transparent;border-radius:18px;box-shadow:none}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow);overflow:hidden}
+.center{display:flex;align-items:center;justify-content:center}
+.row{display:flex;gap:8px;align-items:center}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.logo{font-weight:700;color:white;letter-spacing:0.4px}
+.small{font-size:12px;color:var(--muted)}
+
+input,textarea,select,button{font-family:inherit}
+.input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #eee;background:#fafafa}
+.button{background:linear-gradient(90deg,var(--bg1),var(--bg2));color:white;padding:12px 14px;border:none;border-radius:999px;cursor:pointer;font-weight:600}
+.ghost{background:transparent;border:1px solid #eee}
+.row-between{display:flex;justify-content:space-between;align-items:center}
+
+.card-photo{height:420px;border-radius:12px;background:#f3f3f3;overflow:hidden;display:flex;align-items:flex-end;justify-content:flex-start;position:relative}
+.card-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.profile-mini{width:44px;height:44px;border-radius:999px;border:2px solid rgba(255,255,255,0.9);position:absolute;right:12px;top:12px;overflow:hidden}
+.profile-mini img{width:100%;height:100%;object-fit:cover}
+
+/* controls */
+.controls{display:flex;gap:12px;justify-content:center;padding:12px}
+.control-btn{width:56px;height:56px;border-radius:999px;display:flex;align-items:center;justify-content:center;border:none;background:white;box-shadow:0 6px 18px rgba(0,0,0,0.12);cursor:pointer}
+.like{background:linear-gradient(90deg,#fff,#fff)}
+.reject{background:#fff}
+
+/* list styles */
+.list-row{display:flex;gap:12px;align-items:center;padding:10px;border-radius:10px;border:1px solid #f0f0f0;margin-bottom:8px;background:#fff}
+.avatar{width:56px;height:56px;border-radius:10px;overflow:hidden;flex:0 0 56px}
+.avatar img{width:100%;height:100%;object-fit:cover}
+
+/* responsive desktop layout: show side panel */
+@media(min-width:900px){
+  body{padding:40px}
+  .app-shell{display:grid;grid-template-columns:420px 360px;gap:20px}
+  .card{margin-bottom:0}
+}
+
+/* utility */
+.muted{color:var(--muted)}
+.badge{background:#f3f4f6;padding:6px 8px;border-radius:8px;font-size:12px}
+.countdown{font-weight:700;color:var(--accent)}

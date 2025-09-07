@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Profile</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+  <div class="app-shell" style="max-width:420px">
+    <div class="card">
+      <div class="header">
+        <div><div style="font-weight:700">My Profile</div><div class="small">Edit your details</div></div>
+        <div><a href="feed.html" class="small">Back</a></div>
+      </div>
+
+      <div id="profileArea"></div>
+
+      <div style="margin-top:8px" class="row">
+        <button id="btnUpdateLoc" class="button" style="flex:1">Update Location</button>
+        <button id="btnLogout" class="button ghost" style="flex:1">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    async function loadProfile() {
+      const sess = loadSession(); if (!sess) return location.href='index.html';
+      const resp = await api('getUser', { email: sess.email });
+      if (!resp.success) return document.getElementById('profileArea').innerText = 'No profile';
+      const u = resp.user;
+      const el = document.getElementById('profileArea');
+      el.innerHTML = `<div style="text-align:center"><div style="width:160px;margin:0 auto"><img src="${u['Profile photo']||''}" style="width:100%;border-radius:12px" /></div></div>
+        <div style="height:10px"></div>
+        <div><strong>${u.Name||''}</strong></div>
+        <div class="small muted">${u.Email||''}</div>
+        <div style="height:8px"></div>
+        <div>Interested in: ${u['Interested in']||''}</div>
+        <div style="height:8px"></div>
+        <div class="small muted">Location: ${u.Location||''}</div>`;
+      // save userId in session
+      sess.userId = u.UserID;
+      saveSession(sess);
+    }
+
+    document.getElementById('btnLogout').onclick = () => { clearSession(); location.href='index.html'; };
+
+    document.getElementById('btnUpdateLoc').onclick = async () => {
+      const sess = loadSession(); if (!sess) return;
+      try {
+        const pos = await getCurrentPositionPromise();
+        const name = await resolveLocationName(pos.latitude, pos.longitude);
+        await api('updateLocation', { email: sess.email, lat: pos.latitude, lng: pos.longitude, location: name, ActiveWeb: true });
+        toast('Location updated');
+        loadProfile();
+      } catch(e){ toast('Location failed'); }
+    };
+
+    (function(){ loadProfile(); })();
+  </script>
+</body>
+</html>

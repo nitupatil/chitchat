@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ChitChat — Feed</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="card">
+      <div class="header">
+        <div>
+          <div style="font-weight:700">Discover</div>
+          <div class="small">Swipe or browse nearby</div>
+        </div>
+        <div class="row">
+          <a href="matches.html" class="small" style="color:var(--card)">Matches</a>
+          <a href="profile.html" class="small" style="color:var(--card);margin-left:8px">Profile</a>
+        </div>
+      </div>
+
+      <div id="cardArea" class="card-photo center">
+        <!-- dynamic card -->
+        <div style="padding:12px;color:white;text-shadow:0 2px 6px rgba(0,0,0,0.4);width:100%">
+          <div id="cardName" style="font-size:22px;font-weight:700">Loading...</div>
+          <div class="small" id="cardMeta">—</div>
+        </div>
+        <div class="profile-mini" id="miniProfile"><img src="" alt="" /></div>
+      </div>
+
+      <div class="controls">
+        <button id="btnReject" class="control-btn control-reject">✖</button>
+        <button id="btnRequest" class="control-btn" title="Request Match">❤</button>
+      </div>
+
+      <div style="margin-top:8px">
+        <button id="toggleList" class="button ghost" style="width:100%">Show Nearby List</button>
+      </div>
+    </div>
+
+    <!-- Side column for list (or mobile below) -->
+    <div class="card" id="listPanel">
+      <h4>Nearby</h4>
+      <div id="nearbyList" style="max-height:560px;overflow:auto"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    let candidates = [];
+    let currentIndex = 0;
+
+    async function loadCandidates() {
+      const sess = loadSession();
+      if (!sess || !sess.email) { location.href = 'index.html'; return; }
+      const resp = await api('getNearbyCandidates', { email: sess.email, radiusKm: DEFAULT_RADIUS_KM, limit: 50 });
+      if (!resp.success) return toast(resp.message || 'Failed to load');
+      candidates = resp.results || [];
+      currentIndex = 0;
+      renderCard();
+      renderList();
+    }
+
+    function renderCard() {
+      const area = document.getElementById('cardArea');
+      const name = document.getElementById('cardName');
+      const meta = document.getElementById('cardMeta');
+      const mini = document.getElementById('miniProfile').querySelector('img');
+      if (!candidates || candidates.length === 0) {
+        name.textContent = 'No nearby users';
+        meta.textContent = 'We are searching for you — try later';
+        mini.src = '';
+        return;
+      }
+      const c = candidates[currentIndex % candidates.length];
+      area.style.background = '#f3f3f3';
+      // background image
+      area.innerHTML = `<img src="${c.ProfilePhoto||''}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:12px;position:absolute;left:0;top:0" />` +
+      `<div style="position:relative;padding:12px;color:white;text-shadow:0 2px 6px rgba(0,0,0,0.4)"><div id="cardName" style="font-size:22px;font-weight:700">${c.Name||'Unknown'}</div><div class="small" id="cardMeta">${c.DistanceKm} km • ${c.InterestedIn||'—'}</div></div>`;
+      // mini profile
+      const miniWrap = document.getElementById('miniProfile');
+      miniWrap.innerHTML = `<img src="${c.ProfilePhoto||''}" alt="" />`;
+    }
+
+    function renderList() {
+      const el = document.getElementById('nearbyList');
+      el.innerHTML = '';
+      if (!candidates || !candidates.length) { el.innerHTML = '<div class="small muted">No nearby people found</div>'; return; }
+      candidates.forEach((c, idx) => {
+        const row = document.createElement('div');
+        row.className = 'list-row';
+        row.innerHTML = `<div class="avatar"><img src="${c.ProfilePhoto||''}" alt="" /></div>
+          <div style="flex:1">
+            <div style="font-weight:700">${c.Name||'Unknown'}</div>
+            <div class="small">${c.DistanceKm} km • ${c.InterestedIn||''}</div>
+          </div>
+          <div><button class="button" data-idx="${idx}">Request</button></div>`;
+        el.appendChild(row);
+      });
+      // attach handlers
+      Array.from(el.querySelectorAll('button[data-idx]')).forEach(btn=>{
+        btn.onclick = () => {
+          const i = parseInt(btn.getAttribute('data-idx'));
+          requestMatch(candidates[i]);
+        };
+      });
+    }
+
+    async function requestMatch(candidate) {
+      const sess = loadSession();
+      if (!sess) return location.href = 'index.html';
+      // call findMatches - backend will create a match with closest partner (usually matches requestor)
+      const resp = await api('findMatches', { email: sess.email });
+      if (!resp.success) return toast(resp.message || 'Failed to request');
+      if (!resp.matched) return toast(resp.message || 'No match found — we will keep searching');
+      toast('Match pending — check Matches');
+      // redirect to matches
+      setTimeout(()=>location.href='matches.html',600);
+    }
+
+    document.getElementById('btnReject').onclick = () => {
+      currentIndex = (currentIndex + 1) % Math.max(1, candidates.length);
+      renderCard();
+    };
+    document.getElementById('btnRequest').onclick = () => {
+      if (!candidates.length) return toast('No candidate');
+      requestMatch(candidates[currentIndex]);
+    };
+
+    document.getElementById('toggleList').onclick = () => {
+      const panel = document.getElementById('listPanel');
+      panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+    };
+
+    (function init(){
+      loadCandidates();
+    })();
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ChitChat — Auth</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="card" style="background:transparent;border:none;padding:0">
+      <div class="center" style="margin-bottom:12px">
+        <div style="width:88%;text-align:left">
+          <h1 style="color:white;margin:0">ChitChat</h1>
+          <div class="small" style="color:rgba(255,255,255,0.9)">Meet nearby friends — 24h matches</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="header">
+          <div>
+            <div style="font-weight:700">Welcome</div>
+            <div class="small">Login or register to start</div>
+          </div>
+        </div>
+
+        <div style="margin-top:8px">
+          <input id="email" class="input" placeholder="Email" />
+          <div style="height:8px"></div>
+          <input id="password" class="input" type="password" placeholder="Password (for password login)" />
+          <div style="height:8px"></div>
+
+          <div class="row" style="margin-top:8px">
+            <button id="btnLogin" class="button" style="flex:1">Login</button>
+            <button id="btnOTP" class="button ghost" style="flex:1">Login with OTP</button>
+          </div>
+
+          <div style="height:10px"></div>
+          <button id="btnRegister" class="button ghost" style="width:100%">Create account</button>
+        </div>
+      </div>
+
+      <div style="text-align:center;color:white;font-size:12px;margin-top:8px">By continuing you accept terms & privacy</div>
+    </div>
+  </div>
+
+  <!-- Onboard modal (hidden until later) -->
+  <div id="onboardModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;padding:24px">
+    <div style="max-width:420px;margin:36px auto">
+      <div class="card">
+        <h3>Complete your profile</h3>
+        <input id="name" class="input" placeholder="Your name" />
+        <div style="height:8px"></div>
+        <select id="interested" class="input">
+          <option value="">Interested in — any</option>
+          <option value="Girl">Girl</option>
+          <option value="Boy">Boy</option>
+          <option value="Other">Other</option>
+        </select>
+        <div style="height:8px"></div>
+        <input id="photoFile" type="file" accept="image/*" />
+        <div style="height:8px"></div>
+        <label class="small">Location will be detected from your browser</label>
+        <div style="height:8px"></div>
+        <div class="row">
+          <button id="saveOnboard" class="button" style="flex:1">Save & Continue</button>
+          <button id="skipOnboard" class="button ghost" style="flex:1">Skip</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Index page logic
+    document.getElementById('btnRegister').onclick = async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email) return toast('Enter email');
+      const resp = await api('registerUser', {
+        email, Email: email,
+        Password: password, Password: password
+      });
+      if (!resp.success) return toast(resp.message || 'Register failed');
+      // mark session and show onboard
+      saveSession({ email });
+      document.getElementById('onboardModal').style.display = 'block';
+    };
+
+    document.getElementById('btnLogin').onclick = async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email) return toast('Enter email');
+      const resp = await api('getUser', { email });
+      if (!resp.success) return toast(resp.message || 'Login failed');
+      const user = resp.user;
+      // password check (client side) - spreadsheet stores password; make sure production uses hashed storage
+      if (user.Password && user.Password === password) {
+        saveSession({ email });
+        toast('Logged in');
+        // update location and navigate to feed
+        try {
+          const pos = await getCurrentPositionPromise();
+          const locName = await resolveLocationName(pos.latitude, pos.longitude);
+          await api('updateLocation', { email, lat: pos.latitude, lng: pos.longitude, location: locName, ActiveWeb: true });
+        } catch(e){ console.warn('location failed',e) }
+        window.location.href = 'feed.html';
+      } else {
+        toast('Invalid password');
+      }
+    };
+
+    // OTP flow (simple demo: generate OTP and email via backend) - backend endpoints for OTP would be needed.
+    document.getElementById('btnOTP').onclick = async () => {
+      const email = document.getElementById('email').value.trim();
+      if (!email) return toast('Enter email for OTP');
+      // For now, we'll just pretend OTP is email-only login: register if not exists then login
+      const resp = await api('getUser', { email });
+      if (!resp.success) {
+        // create lightweight user with blank name
+        await api('registerUser', { email, Name: '', Password: '' });
+      }
+      saveSession({ email });
+      // update location if possible and go to feed
+      try {
+        const pos = await getCurrentPositionPromise();
+        const locName = await resolveLocationName(pos.latitude, pos.longitude);
+        await api('updateLocation', { email, lat: pos.latitude, lng: pos.longitude, location: locName, ActiveWeb: true });
+      } catch(e){}
+      window.location.href = 'feed.html';
+    };
+
+    // Onboard modal handlers
+    document.getElementById('saveOnboard').onclick = async () => {
+      const name = document.getElementById('name').value.trim();
+      const interested = document.getElementById('interested').value;
+      const file = document.getElementById('photoFile').files[0];
+      const sess = loadSession();
+      if (!sess || !sess.email) return toast('Session missing');
+      const email = sess.email;
+      let profileUrl = '';
+      if (file) {
+        const b64 = await fileToBase64(file);
+        const up = await api('uploadImage', { imageBase64: b64 });
+        if (up && up.success && up.data && up.data.data && up.data.data.display_url) profileUrl = up.data.data.display_url;
+      }
+      await api('registerUser', { email, Name: name, 'Interested in': interested, profilePhoto: profileUrl }); // note: if duplicate registration, backend blocks; better to add update endpoint in future
+      document.getElementById('onboardModal').style.display = 'none';
+      toast('Saved');
+      window.location.href = 'feed.html';
+    };
+
+    document.getElementById('skipOnboard').onclick = () => {
+      document.getElementById('onboardModal').style.display = 'none';
+      window.location.href = 'feed.html';
+    };
+
+    // Quick auto-open onboard if new session but minimal checks omitted for brevity
+    (function init(){
+      const sess = loadSession();
+      if (sess && sess.email) {
+        // optionally redirect
+      }
+    })();
+  </script>
+</body>
+</html>

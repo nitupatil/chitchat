@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ChitChat — Chat</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell" style="max-width:420px">
+    <div class="card">
+      <div class="header">
+        <div>
+          <div id="chatWith" style="font-weight:700">Chat</div>
+          <div class="small" id="otherStatus">—</div>
+        </div>
+        <div><a href="feed.html" class="small">Back</a></div>
+      </div>
+
+      <div id="messages" style="height:520px;overflow:auto;padding:8px;background:#fafafa;border-radius:8px"></div>
+
+      <div style="margin-top:8px" class="row">
+        <input id="msgInp" class="input" placeholder="Type a message..." />
+        <button id="sendBtn" class="button">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Chat page expects query param ?matchId=...
+    function getQuery(){ return Object.fromEntries(new URLSearchParams(location.search)); }
+    const q = getQuery();
+    const matchId = q.matchId;
+
+    async function loadChats() {
+      const sess = loadSession();
+      if (!sess || !sess.email) return location.href='index.html';
+      const resp = await api('listActiveChats', { email: sess.email });
+      if (!resp.success) return document.getElementById('messages').innerText = 'No chats';
+      const chats = resp.chats || [];
+      const el = document.getElementById('messages');
+      el.innerHTML = '';
+      chats.forEach(c=>{
+        const me = (c.FromUserID === (sess.userId || ''));
+        const row = document.createElement('div');
+        row.style.marginBottom = '8px';
+        row.innerHTML = `<div style="background:${me?'#dcfce7':'#fff'};padding:8px;border-radius:8px;max-width:78%">${c.Message}</div><div class="small muted">${c.Timestamp||''}</div>`;
+        el.appendChild(row);
+      });
+    }
+
+    document.getElementById('sendBtn').onclick = async () => {
+      const msg = document.getElementById('msgInp').value.trim();
+      if (!msg) return;
+      const sess = loadSession();
+      if (!sess) return location.href='index.html';
+      const payload = { FromUserID: sess.userId||'', ToUserID: '', Message: msg, Timestamp: new Date().toISOString() };
+      // send to backend (requires addChat action). If missing, ask me and I'll add it.
+      const r = await api('addChat', payload);
+      if (!r.success) return toast(r.message || 'Failed to send');
+      document.getElementById('msgInp').value = '';
+      loadChats();
+    };
+
+    (function init(){
+      loadChats();
+      setInterval(loadChats, 3000);
+    })();
+  </script>
+</body>
+</html>

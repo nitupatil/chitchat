@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ChitChat — Matches</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell" style="max-width:420px">
+    <div class="card">
+      <div class="header">
+        <div>
+          <div style="font-weight:700">Matches</div>
+          <div class="small">Active & pending</div>
+        </div>
+        <div><a href="feed.html" class="small">Discover</a></div>
+      </div>
+      <div id="matchesList"></div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+  <script>
+    async function loadMatches() {
+      const sess = loadSession(); if (!sess) return location.href='index.html';
+      const resp = await api('listMatches', { email: sess.email });
+      const el = document.getElementById('matchesList');
+      if (!resp.success) { el.innerHTML = '<div class="small muted">No matches</div>'; return; }
+      const list = resp.matches || [];
+      el.innerHTML = '';
+      list.forEach(m=>{
+        const row = document.createElement('div');
+        row.className = 'list-row';
+        row.innerHTML = `<div class="avatar"><img src="${m.ProfilePhoto||''}" /></div>
+          <div style="flex:1">
+            <div style="font-weight:700">${m.Name||''}</div>
+            <div class="small">${m.Status} • Expires: ${m.ExpiresAt||''}</div>
+          </div>
+          <div>
+            ${m.Status==='Pending'?`<button class="button" data-match="${m.MatchID}" data-act="accept">Accept</button><button class="button ghost" data-match="${m.MatchID}" data-act="reject">Reject</button>`:
+            `<a class="button" href="chat.html?matchId=${m.MatchID}">Chat</a>`}
+          </div>`;
+        el.appendChild(row);
+      });
+      Array.from(el.querySelectorAll('button[data-act]')).forEach(btn=>{
+        btn.onclick = async () => {
+          const act = btn.getAttribute('data-act');
+          const mid = btn.getAttribute('data-match');
+          if (act==='accept') await api('acceptMatch', { MatchID: mid });
+          else await api('rejectMatch', { MatchID: mid });
+          loadMatches();
+        };
+      });
+    }
+    (function(){ loadMatches(); setInterval(loadMatches, 4000); })();
+  </script>
+</body>
+</html>
